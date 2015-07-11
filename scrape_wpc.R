@@ -16,7 +16,7 @@ N = nd.max - nd.min + 1
 
 all.events = data.frame(title=rep(character(),N),link=rep(character(),N),
 	street.address=rep(character(),N),city=rep(character(),N),state=rep(character(),N),
-	state=rep(character(),N),date=rep(character(),N),description=rep(character(),N),
+	date=rep(character(),N),description=rep(character(),N),
 	category1=rep(character(),N),category2=rep(character(),N),category3=rep(character(),N),
 	category4=rep(character(),N),category5=rep(character(),N),category6=rep(character(),N),
 	stringsAsFactors=FALSE)
@@ -30,8 +30,11 @@ for (n in nd.min:nd.max) {
 		#adding NAs at end to prevent vector from looping when appending to data.frame with
 		#more columns than it
 		all.events[n-nd.min+1, ] = t(c(title,nd,info,NA,NA,NA,NA,NA,NA,NA))
+		if(substr(all.events$description[n-nd.min+1],0,11)=="Event Info:") {
+			all.events$description[n-nd.min+1] = substr(all.events$description[n-nd.min+1],
+									  12,nchar(all.events$description[n-nd.min+1]))
+		}
  	}
-	
 }
 
 #adjust categories to those we want
