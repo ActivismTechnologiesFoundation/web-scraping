@@ -9,10 +9,12 @@ library(rvest)
 library(RCurl)
 library(reshape2)
 library(plyr)
+library(stringr)
 
-nd.min = 14950
-nd.max = 14960
+nd.min = 15000
+nd.max = 16000
 N = nd.max - nd.min + 1
+artcl.len = 2900
 
 all.events = data.frame(title=rep(character(),N),link=rep(character(),N),
 	street.address=rep(character(),N),city=rep(character(),N),state=rep(character(),N),
@@ -24,17 +26,37 @@ all.events = data.frame(title=rep(character(),N),link=rep(character(),N),
 for (n in nd.min:nd.max) {
 	nd <- paste("http://washingtonpeacecenter.org/node/",n,sep="")
 	if(url.exists(nd)) {
-		wpc_node <- html(nd)
+         wpc_node <- html(nd)
+	   Sys.sleep(6)
+	   #condition on event page not being an article
+	   if (max(nchar(html_text(html_nodes(wpc_node,".field--label-hidden .even")))) < artcl.len) {
 		title <- html_text(html_nodes(wpc_node,"#page-title"))
-		info <- html_text(html_nodes(wpc_node,".field__item"))
+		address <- html_text(html_nodes(wpc_node,".field--name-field-street-address .even"))
+		city <- html_text(html_nodes(wpc_node,".field--name-field-city .even"))
+		state <- html_text(html_nodes(wpc_node,".field--type-list-text .even"))
+		date <- html_text(html_nodes(wpc_node,".field--type-datetime"))
+		description <- html_text(html_nodes(wpc_node,".field--label-hidden .even"))
+		categories <- html_text(html_nodes(wpc_node,".clearfix .field__item a"))
 		#adding NAs at end to prevent vector from looping when appending to data.frame with
 		#more columns than it
-		all.events[n-nd.min+1, ] = t(c(title,nd,info,NA,NA,NA,NA,NA,NA,NA))
+		all.events[n-nd.min+1, ] = t(c(title,nd,address,city,state,date,description,
+							categories,NA,NA,NA,NA,NA,NA,NA,NA))
 		if(substr(all.events$description[n-nd.min+1],0,11)=="Event Info:") {
 			all.events$description[n-nd.min+1] = substr(all.events$description[n-nd.min+1],
 									  12,nchar(all.events$description[n-nd.min+1]))
 		}
+		if(substr(all.events$date[n-nd.min+1],0,5)=="Date:") {
+			all.events$date[n-nd.min+1] = substr(all.events$date[n-nd.min+1],
+									  6,nchar(all.events$date[n-nd.min+1]))
+		}
+
+		#trim white space
+		all.events$description[n-nd.min+1] = str_trim(all.events$description[n-nd.min+1],side=c("both"))
+		all.events$date[n-nd.min+1] = str_trim(all.events$date[n-nd.min+1],"both")
+	   }
  	}
+	#else
+	#	mark row for deletion
 }
 
 #adjust categories to those we want
