@@ -11,7 +11,7 @@ library(reshape2)
 library(plyr)
 library(stringr)
 
-nd.min = 15000
+nd.min = 15200
 nd.max = 16000
 N = nd.max - nd.min + 1
 artcl.len = 2900
