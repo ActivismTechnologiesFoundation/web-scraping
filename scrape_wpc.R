@@ -10,15 +10,16 @@ library(RCurl)
 library(reshape2)
 library(plyr)
 library(stringr)
+source("C:/Users/Brett/Documents/Assemble/web-scraping/zip_lookup.R")
 
 nd.min = 15200
-nd.max = 16000
+nd.max = 16200
 N = nd.max - nd.min + 1
 artcl.len = 2900
 
 all.events = data.frame(title=rep(character(),N),link=rep(character(),N),
 	street.address=rep(character(),N),city=rep(character(),N),state=rep(character(),N),
-	date=rep(character(),N),description=rep(character(),N),
+	zip=rep(character(),N),date=rep(character(),N),description=rep(character(),N),
 	category1=rep(character(),N),category2=rep(character(),N),category3=rep(character(),N),
 	category4=rep(character(),N),category5=rep(character(),N),category6=rep(character(),N),
 	stringsAsFactors=FALSE)
@@ -28,19 +29,23 @@ for (n in nd.min:nd.max) {
 	if(url.exists(nd)) {
          wpc_node <- html(nd)
 	   Sys.sleep(6)
-	   #condition on event page not being an article
-	   if (max(nchar(html_text(html_nodes(wpc_node,".field--label-hidden .even")))) < artcl.len) {
+	   #condition on event page not being an article or an empty event page
+	   if (max(nchar(html_text(html_nodes(wpc_node,".field--label-hidden .even")))) < artcl.len
+		 & length(html_text(html_nodes(wpc_node,".field--name-field-street-address .even")))>0) {
 		title <- html_text(html_nodes(wpc_node,"#page-title"))
 		address <- html_text(html_nodes(wpc_node,".field--name-field-street-address .even"))
 		city <- html_text(html_nodes(wpc_node,".field--name-field-city .even"))
 		state <- html_text(html_nodes(wpc_node,".field--type-list-text .even"))
+		if (state=="Virginia") { state="VA" }
+		else if (state=="Maryland") { state="MD" }
+		zip <- zip_lookup(city,state)
 		date <- html_text(html_nodes(wpc_node,".field--type-datetime"))
 		description <- html_text(html_nodes(wpc_node,".field--label-hidden .even"))
 		categories <- html_text(html_nodes(wpc_node,".clearfix .field__item a"))
 		#adding NAs at end to prevent vector from looping when appending to data.frame with
 		#more columns than it
-		all.events[n-nd.min+1, ] = t(c(title,nd,address,city,state,date,description,
-							categories,NA,NA,NA,NA,NA,NA,NA,NA))
+		all.events[n-nd.min+1, ] = t(c(title,nd,address,city,state,zip,date,description,
+							categories,NA,NA,NA,NA,NA,NA,NA,NA,NA))
 		if(substr(all.events$description[n-nd.min+1],0,11)=="Event Info:") {
 			all.events$description[n-nd.min+1] = substr(all.events$description[n-nd.min+1],
 									  12,nchar(all.events$description[n-nd.min+1]))
