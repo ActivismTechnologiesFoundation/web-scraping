@@ -12,8 +12,8 @@ library(plyr)
 library(stringr)
 source("C:/Users/Brett/Documents/Assemble/web-scraping/zip_lookup.R")
 
-nd.min = 15200
-nd.max = 16200
+nd.min = 14700
+nd.max = 15800
 N = nd.max - nd.min + 1
 artcl.len = 2900
 
@@ -31,21 +31,44 @@ for (n in nd.min:nd.max) {
 	   Sys.sleep(6)
 	   #condition on event page not being an article or an empty event page
 	   if (max(nchar(html_text(html_nodes(wpc_node,".field--label-hidden .even")))) < artcl.len
-		 & length(html_text(html_nodes(wpc_node,".field--name-field-street-address .even")))>0) {
+		 & length(html_text(html_nodes(wpc_node,".field--name-field-street-address .even")))>0
+		 & length(html_text(html_nodes(wpc_node,".field--type-datetime")))>0) {
 		title <- html_text(html_nodes(wpc_node,"#page-title"))
 		address <- html_text(html_nodes(wpc_node,".field--name-field-street-address .even"))
 		city <- html_text(html_nodes(wpc_node,".field--name-field-city .even"))
 		state <- html_text(html_nodes(wpc_node,".field--type-list-text .even"))
-		if (state=="Virginia") { state="VA" }
-		else if (state=="Maryland") { state="MD" }
-		zip <- zip_lookup(city,state)
 		date <- html_text(html_nodes(wpc_node,".field--type-datetime"))
 		description <- html_text(html_nodes(wpc_node,".field--label-hidden .even"))
 		categories <- html_text(html_nodes(wpc_node,".clearfix .field__item a"))
-		#adding NAs at end to prevent vector from looping when appending to data.frame with
-		#more columns than it
-		all.events[n-nd.min+1, ] = t(c(title,nd,address,city,state,zip,date,description,
+
+		#zip code lookup 
+		state = str_trim(state,"both")
+		city = str_trim(city,"both")
+		if (state=="Virginia") { state="VA" }
+		else if (state=="Maryland") { state="MD" }
+		zip <- zip_lookup(city,state)
+
+		#add to event list if date in future
+			#first extract date
+		if(substr(date,0,5)=="Date:"){date=str_trim(substr(date,6,nchar(date)))}
+		tmp = strsplit(date,'-')[[1]][1]
+		if (length(tmp)==length(date)) { temp=strsplit(date,"\\(")[[1]][1] }
+		nicedate = as.Date(tmp,"%A, %B %d, %Y")
+
+		#sometimes the city is inexplicably missing
+		if (length(city)==0) { 
+			if (state=="DC") { city = "Washington" }
+		}
+
+		if(nicedate>=Sys.Date()) {
+			#adding NAs at end to prevent vector from looping when appending to data.frame with
+			#more columns than it
+			all.events[n-nd.min+1, ] = t(c(title,nd,address,city,state,zip,date,description,
 							categories,NA,NA,NA,NA,NA,NA,NA,NA,NA))
+		} else {
+			#If event already happened, go on to next node
+			next
+		}
 		if(substr(all.events$description[n-nd.min+1],0,11)=="Event Info:") {
 			all.events$description[n-nd.min+1] = substr(all.events$description[n-nd.min+1],
 									  12,nchar(all.events$description[n-nd.min+1]))
@@ -58,6 +81,8 @@ for (n in nd.min:nd.max) {
 		#trim white space
 		all.events$description[n-nd.min+1] = str_trim(all.events$description[n-nd.min+1],side=c("both"))
 		all.events$date[n-nd.min+1] = str_trim(all.events$date[n-nd.min+1],"both")
+		all.events$address[n-nd.min+1] = str_trim(all.events$address[n-nd.min+1],"both")
+
 	   }
  	}
 	#else
@@ -80,7 +105,7 @@ ncat <- cat_simp_transform("Economics",w1="Labor/Workers' Rights",w2="Economic J
 ncat <- cat_simp_transform("Environment",w1="Environmental Justice/Climate Change")
 ncat <- cat_simp_transform("War & Peace",w1="Peace/War")
 ncat <- cat_simp_transform("Crime & Punishment",w1="Criminal Justice/Prisons")
-ncat <- cat_simp_transform("Immigration",w1="Immigration/International Justice")
+ncat <- cat_simp_transform("Foreign Affairs",w1="Immigration/International Justice")
 ncat <- cat_simp_transform("Gender",w1="Women/Gender/Sexuality Issues")
 ncat <- cat_simp_transform("Education",w1="Education/Youth")
 ncat <- cat_simp_transform("Arts & Culture",w1="Arts and Culture")
