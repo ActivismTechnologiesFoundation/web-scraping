@@ -3,23 +3,25 @@
 # First need to use Selectorgadget.com's tool to find which CSS selector uniquely
 # identifies the relevant fields.
 
-setwd("C:/Users/Brett/Documents/Assemble/web-scraping")
+setwd("C:/Users/bm/Documents/Assemble/web-scraping")
 
 library(rvest)
 library(RCurl)
 library(reshape2)
 library(plyr)
 library(stringr)
-source("C:/Users/Brett/Documents/Assemble/web-scraping/zip_lookup.R")
 
-nd.min = 14700
-nd.max = 15800
+###############################################################################################################
+# CHANGE NODES FOR EACH RUN -- find on the WPC website what node number current events are listed under
+###############################################################################################################
+nd.min = 16469
+nd.max = 16469
 N = nd.max - nd.min + 1
 artcl.len = 2900
 
-all.events = data.frame(title=rep(character(),N),link=rep(character(),N),
-	street.address=rep(character(),N),city=rep(character(),N),state=rep(character(),N),
-	zip=rep(character(),N),date=rep(character(),N),description=rep(character(),N),
+all.events = data.frame(name=rep(character(),N),link=rep(character(),N),
+	street_address=rep(character(),N),line_2=rep(character(),N),city=rep(character(),N),state=rep(character(),N),
+	date=rep(character(),N),description=rep(character(),N),
 	category1=rep(character(),N),category2=rep(character(),N),category3=rep(character(),N),
 	category4=rep(character(),N),category5=rep(character(),N),category6=rep(character(),N),
 	stringsAsFactors=FALSE)
@@ -27,13 +29,14 @@ all.events = data.frame(title=rep(character(),N),link=rep(character(),N),
 for (n in nd.min:nd.max) {
 	nd <- paste("http://washingtonpeacecenter.org/node/",n,sep="")
 	if(url.exists(nd)) {
-         wpc_node <- html(nd)
-	   Sys.sleep(6)
+         wpc_node <- read_html(nd)
+	   Sys.sleep(5)
 	   #condition on event page not being an article or an empty event page
 	   if (max(nchar(html_text(html_nodes(wpc_node,".field--label-hidden .even")))) < artcl.len
 		 & length(html_text(html_nodes(wpc_node,".field--name-field-street-address .even")))>0
 		 & length(html_text(html_nodes(wpc_node,".field--type-datetime")))>0) {
-		title <- html_text(html_nodes(wpc_node,"#page-title"))
+	     
+		name <- html_text(html_nodes(wpc_node,"#page-title"))
 		address <- html_text(html_nodes(wpc_node,".field--name-field-street-address .even"))
 		city <- html_text(html_nodes(wpc_node,".field--name-field-city .even"))
 		state <- html_text(html_nodes(wpc_node,".field--type-list-text .even"))
@@ -41,16 +44,15 @@ for (n in nd.min:nd.max) {
 		description <- html_text(html_nodes(wpc_node,".field--label-hidden .even"))
 		categories <- html_text(html_nodes(wpc_node,".clearfix .field__item a"))
 
-		#zip code lookup 
 		state = str_trim(state,"both")
 		city = str_trim(city,"both")
 		if (state=="Virginia") { state="VA" }
-		else if (state=="Maryland") { state="MD" }
-		zip <- zip_lookup(city,state)
+		if (state=="Maryland") { state="MD" }
 
 		#add to event list if date in future
 			#first extract date
 		if(substr(date,0,5)=="Date:"){date=str_trim(substr(date,6,nchar(date)))}
+		if(!(substr(date,0,1) %in% LETTERS) & !(substr(date,0,1) %in% letters)) {date=str_trim(substr(date,2,nchar(date)))}
 		tmp = strsplit(date,'-')[[1]][1]
 		if (length(tmp)==length(date)) { temp=strsplit(date,"\\(")[[1]][1] }
 		nicedate = as.Date(tmp,"%A, %B %d, %Y")
@@ -63,8 +65,19 @@ for (n in nd.min:nd.max) {
 		if(nicedate>=Sys.Date()) {
 			#adding NAs at end to prevent vector from looping when appending to data.frame with
 			#more columns than it
-			all.events[n-nd.min+1, ] = t(c(title,nd,address,city,state,zip,date,description,
-							categories,NA,NA,NA,NA,NA,NA,NA,NA,NA))
+			all.events[n-nd.min+1,1] = name
+			all.events[n-nd.min+1,2] = nd
+			all.events[n-nd.min+1,3] = address
+			all.events[n-nd.min+1,5] = city
+			all.events[n-nd.min+1,6] = state
+			all.events[n-nd.min+1,7] = date
+			all.events[n-nd.min+1,8] = description
+			all.events[n-nd.min+1,9] = categories[1]
+			all.events[n-nd.min+1,10] = categories[2]
+			all.events[n-nd.min+1,11] = categories[3]
+			all.events[n-nd.min+1,12] = categories[4]
+			all.events[n-nd.min+1,13] = categories[5]
+			all.events[n-nd.min+1,14] = categories[6]
 		} else {
 			#If event already happened, go on to next node
 			next
